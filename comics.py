@@ -1,9 +1,15 @@
 # Alexander Marshall
 
+import cv2
+import numpy
+import glob
+import os
 import requests
 from bs4 import BeautifulSoup
 import pprint
 import urllib.request
+from fpdf import FPDF
+import webbrowser
 
 query = input("Enter search: ")
 query = query.replace(' ', '+')
@@ -38,5 +44,28 @@ soup = BeautifulSoup(page.content, 'html.parser')
 
 pages = soup.find_all('img', class_='chapter_img')
 
+print('Getting images... ', end='')
 for i in range(len(pages)):
     urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
+print('Done')
+
+pdf = FPDF()
+pdf.set_auto_page_break(0)
+
+print('Combining images to pdf... ', end='')
+for i in range (len(os.listdir('images'))):
+    image = 'images/'+str(i)+'.jpg'
+    img = cv2.imread(image)
+    
+    if img.shape[0] < img.shape[1]:
+        pdf.add_page(orientation='L')
+        pdf.image(image, x=0, y=0, h=210, w=297)
+    else:
+        pdf.add_page(orientation='P')
+        pdf.image(image, x=0, y=0, w=210, h=297)
+
+    os.remove(image)
+
+pdf.output('comic.pdf', 'F')
+print('Done')
+webbrowser.open(r'comic.pdf')
