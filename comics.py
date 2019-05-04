@@ -11,11 +11,9 @@ import webbrowser
 import json
 from prettytable import PrettyTable
 
-def add_to_readlist():
-    query = input("Enter Search: ")
-    _ = os.system('cls')
+def add_to_readlist(query, p=1):
     query = query.replace(' ', '+')
-    url = 'https://www.comicextra.com/comic-search?key='+query
+    url = 'https://www.comicextra.com/comic-search?key='+query+'&page='+str(p)
     page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
     soup = BeautifulSoup(page.content, 'html.parser')
 
@@ -30,13 +28,16 @@ def add_to_readlist():
         total = get_total_issues(results[i].a['href'])
         table.add_row([i, results[i].h3.text, total, released, status])
 
+    print('Page: '+str(p))
     print(table)
 
-    print('\n[b] Go Back  [q] Quit')
+    print('\n[n] Next Page  [b] Go Back  [q] Quit')
 
-    sel = input("\nSelect a Comic: ")
-    _ = os.system('cls')
+    sel = input("\nSelection: ")
 
+    if sel == 'n':
+        add_to_readlist(query, p+1)
+        _ = os.system('cls')
     if sel == 'b':
         main()
     if sel == 'q':
@@ -88,10 +89,14 @@ def print_readlist():
         table.add_row([i, data[key]['title'], str(data[key]['read'])+'/'+str(data[key]['total']), data[key]['status']])
         i += 1
     print(table)
-    print('\n[b] Go Back  [q] Quit')
+    print('\n[a] Add to List  [b] Go Back  [q] Quit')
     selection = input('\nSelection: ')
     _ = os.system('cls')
 
+    if selection =='a':
+        query = input("Enter Search: ")
+        _ = os.system('cls')
+        add_to_readlist(query, 1)
     if selection == 'b':
         main()
     if selection == 'q':
@@ -121,13 +126,13 @@ def comic_detail_view(selection):
     table.align= 'l'
     table.add_row([data[selection]['title'], str(data[selection]['read'])+'/'+str(data[selection]['total']), data[selection]['status']])
     print(table)
-    print('[0] Read  [1] Edit Issues Read  [2] Remove from List  [b] Go Back  [q] Quit')
+    print('[r] Read  [e] Edit Issues Read  [d] Delete from List  [b] Go Back  [q] Quit')
     sel = input('\nSelection: ')
     _ = os.system('cls')
 
-    if sel == '0':
+    if sel == 'r':
         read_comic(selection)
-    if sel == '1':
+    if sel == 'e':
         issues = input('How many issues have you read? ')
         if int(issues) > data[selection]['total']:
             print('That doesn\'t seem right...')
@@ -141,7 +146,7 @@ def comic_detail_view(selection):
             'status':data[selection]['status']}})
         write_readlist(data)
         comic_detail_view(selection)
-    if sel == '2':
+    if sel == 'd':
         confirm = input('Are you sure you want to remove {} from readlist? (y/n)'.format(data[selection]['title']))
         _ = os.system('cls')
         if confirm == 'y':
@@ -237,14 +242,15 @@ def update_readlist():
 
 def main():
     _ = os.system('cls')
-    sel = input('What would you like to do?\n[0] Add to List  [1] View List  [q] Quit\n\nSelection: ')
-    _ = os.system('cls')
-    if sel == '0':
-        add_to_readlist()
-    if sel == '1':
-        print_readlist()
-    if sel == 'q':
-        exit()
+    print_readlist()
+    # sel = input('What would you like to do?\n[0] Add to List  [1] View List  [q] Quit\n\nSelection: ')
+    # _ = os.system('cls')
+    # if sel == '0':
+    #     add_to_readlist()
+    # if sel == '1':
+    #     print_readlist()
+    # if sel == 'q':
+    #     exit()
 
 if __name__== "__main__":
     print('Updating comcis...')
