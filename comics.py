@@ -9,72 +9,58 @@ import urllib.request
 from fpdf import FPDF
 import webbrowser
 import json
+from prettytable import PrettyTable
 
 def add_to_readlist():
-    query = input("Enter search: ")
+    query = input("Enter Search: ")
+    _ = os.system('cls')
     query = query.replace(' ', '+')
     url = 'https://www.comicextra.com/comic-search?key='+query
     page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
     soup = BeautifulSoup(page.content, 'html.parser')
 
     results = soup.find_all('div', class_='cartoon-box')
-
-    for i in range(len(results)):
-        print("[{}] {}".format(i, results[i].h3.text))
-
-    sel = input("select a comic: ")
-    confirm = input("add {} to readlist? (y/n): ".format(results[int(sel)].h3.text))
-    if confirm == 'y':
-        url = results[int(sel)].a['href']
-        data = get_readlist()
-        if data == None:
-            data = {}
-
-        data.update({results[int(sel)].h3.text: {'title':results[int(sel)].h3.text,
-            'url':results[int(sel)].a['href'],
-            'read':0}})
-        write_readlist(data)    
-
-def get_readlist():
-    if os.path.getsize('readlist.json') > 0:# Alexander Marshall
-
-import cv2
-import os
-import requests
-from bs4 import BeautifulSoup
-import pprint
-import urllib.request
-from fpdf import FPDF
-import webbrowser
-import json
-
-def add_to_readlist():
-    query = input("Enter search: ")
-    query = query.replace(' ', '+')
-    url = 'https://www.comicextra.com/comic-search?key='+query
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
-
-    results = soup.find_all('div', class_='cartoon-box')
+    table = PrettyTable(['#', 'Name', 'Issues', 'Released', 'Status'])
+    table.align = 'l'
 
     for i in range(len(results)):
         details = results[i].find_all('div', class_='detail')
-        print("\n[{}] {}".format(i, results[i].h3.text))
-        for detail in details:
-            print(' '+detail.text.replace('\n', ''))
+        status = details[1].text[8:]
+        released = details[2].text[10:]
+        total = get_total_issues(results[i].a['href'])
+        table.add_row([i, results[i].h3.text, total, released, status])
 
-    sel = input("select a comic: ")
+    print(table)
+
+    print('\n[b] Go Back  [q] Quit')
+
+    sel = input("\nSelect a Comic: ")
+    _ = os.system('cls')
+
+    if sel == 'b':
+        main()
+    if sel == 'q':
+        exit()
+
     confirm = input("add {} to readlist? (y/n): ".format(results[int(sel)].h3.text))
     if confirm == 'y':
-        url = results[int(sel)].a['href']
         data = get_readlist()
-        total = get_total_issues(url)
-        status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
-        
         if data == None:
             data = {}
 
-        data.update({len(data): {'title':results[int(sel)].h3.text,
+        row = table[int(sel)]
+        row.border = False
+        row.header = False
+
+        if row.get_string(fields=['Name']).strip() in data.keys():
+            print('Comic is already in readlist')
+            main()
+
+        url = results[int(sel)].a['href']
+        total = get_total_issues(url)
+        status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
+
+        data.update({row.get_string(fields=['Name']).strip(): {'title':results[int(sel)].h3.text,
             'url':results[int(sel)].a['href'],
             'read':0,
             'total':total,
@@ -96,11 +82,25 @@ def write_readlist(data):
 def print_readlist():
     data = json.load(open('readlist.json', 'r'))
     i = 0
+    table = PrettyTable(['#', 'Name', 'Issues Read', 'Status'])
+    table.align= 'l'
     for key in data:
-        print('[{}] {} \t{}/{} ({})'.format(key, data[key]['title'], data[key]['read'], data[key]['total'], data[key]['status']))
+        table.add_row([i, data[key]['title'], str(data[key]['read'])+'/'+str(data[key]['total']), data[key]['status']])
         i += 1
-    print('\n[{}] Go Back'.format(i))
-    print('[{}] Quit'.format(i+1))
+    print(table)
+    print('\n[b] Go Back  [q] Quit')
+    selection = input('\nSelection: ')
+    _ = os.system('cls')
+
+    if selection == 'b':
+        main()
+    if selection == 'q':
+        exit()
+
+    row = table[int(selection)]
+    row.border = False
+    row.header = False
+    comic_detail_view(row.get_string(fields=['Name']).strip())
 
 def get_total_issues(url):
     page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
@@ -109,19 +109,54 @@ def get_total_issues(url):
     issues = soup.find_all('tr')
     return len(issues)
 
+def comic_detail_view(selection):
+    data = get_readlist()
+
+    if selection == 'b':
+        main()
+    if selection == 'q':
+        exit()
+
+    table = PrettyTable(['Name', 'Issues Read', 'Status'])
+    table.align= 'l'
+    table.add_row([data[selection]['title'], str(data[selection]['read'])+'/'+str(data[selection]['total']), data[selection]['status']])
+    print(table)
+    print('[0] Read  [1] Edit Issues Read  [2] Remove from List  [b] Go Back  [q] Quit')
+    sel = input('\nSelection: ')
+
+    if sel == '0':
+        read_comic(selection)
+    if sel == '1':
+        issues = input('How many issues have you read? ')
+        _ = os.system('cls')
+        data.update({selection: {'title':data[selection]['title'],
+            'url':data[selection]['url'],
+            'read':int(issues),
+            'total':data[selection]['total'],
+            'status':data[selection]['status']}})
+        write_readlist(data)
+        comic_detail_view(selection)
+    if sel == '2':
+        confirm = input('Are you sure you want to remove {} from readlist? (y/n)'.format(data[selection]['title']))
+        _ = os.system('cls')
+        if confirm == 'y':
+            del data[selection]
+            write_readlist(data)
+            print_readlist()
+        else:
+            comic_detail_view(selection)
+    if sel == 'b':
+        main()
+    if sel == 'q':
+        exit()
 
 def read_comic(selection):
     data = get_readlist()
 
-    if int(selection) == len(data):
-        main()
-    if int(selection) > len(data):
-        exit()
-
     comic = data[selection]
 
     if comic['read'] == comic['total']:
-        print('There are no more issues to read for this comic')
+        print('There are no more issues to read for this comic!')
         main()
 
     url = comic['url']
@@ -145,9 +180,7 @@ def read_comic(selection):
             'total':comic['total'],
             'status':comic['status']}})
     write_readlist(data) 
-    combine_images()
 
-def combine_images():
     pdf = FPDF()
     pdf.set_auto_page_break(0)
 
@@ -166,10 +199,21 @@ def combine_images():
 
     pdf.output('comic.pdf', 'F')
     webbrowser.open(r'comic.pdf')
-    main()
+    print('[n] Read Next Issue [b] Go Back [q] Quit')
+    sel = input('\nSelection: ')
+    _ = os.system('cls')
+
+    if sel == 'n':
+        read_comic(selection)
+    if sel == 'b':
+        main()
+    if sel == 'q':
+        exit()
 
 def update_readlist():
     data = get_readlist()
+    if data == None:
+        return None
     for key in data:
         comic = data[key]
         page = requests.get(comic['url'], headers={'User-Agent':'Mozilla/5.0'})
@@ -188,87 +232,14 @@ def update_readlist():
 
 def main():
     update_readlist()
-    sel = input('What would you like to do?\n[0] Add to List\n[1] Read from List\n[2] Quit\n\nSelection: ')
+    sel = input('What would you like to do?\n[0] Add to List  [1] View List  [q] Quit\n\nSelection: ')
+    _ = os.system('cls')
     if sel == '0':
         add_to_readlist()
     if sel == '1':
         print_readlist()
-        selection = input('\nSelection: ')
-        read_comic(selection)
-    if sel == '2':
+    if sel == 'q':
         exit()
 
 if __name__== "__main__":
     main()
-        data = json.load(open('readlist.json', 'r'))
-        return data
-    else:
-        return None
-
-def write_readlist(data):
-    json.dump(data, open('readlist.json', 'w'))
-
-def print_readlist():
-    print('\n')
-    data = json.load(open('readlist.json', 'r'))
-    i = 0
-    for key in data:
-        print('[{}] {}'.format(i, key))
-        i += 1
-
-
-def read_comic(selection):
-    data = get_readlist()
-    comic = data[selection]
-    url = 'https://comicextra.com/'+comic['title'].lower().replace(' ', '-')+'/'+'chapter-'+str(comic['read']+1)+'/full'.replace('/comic', '')
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
-
-
-    # issues = soup.find_all("tr")
-
-    # for i in range(len(issues)):
-    #     td = issues[i].find_all("td")
-    #     link = td[0]
-    #     date = td[1]
-    #     print('[{}] {} {}'.format(i, date.text.strip('\n'), link.text.strip('\n')))
-
-    # sel = input("select an issue to read: ")
-    # url = issues[i].find("td").a['href']+'/full'
-
-    # page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    # soup = BeautifulSoup(page.content, 'html.parser')
-
-    pages = soup.find_all('img', class_='chapter_img')
-
-    for i in range(len(pages)):
-        urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
-    combine_images()
-
-
-def combine_images():
-    pdf = FPDF()
-    pdf.set_auto_page_break(0)
-
-    for i in range (len(os.listdir('images'))):
-        image = 'images/'+str(i)+'.jpg'
-        img = cv2.imread(image)
-        
-        if img.shape[0] < img.shape[1]:
-            pdf.add_page(orientation='L')
-            pdf.image(image, x=0, y=0, h=210, w=297)
-        else:
-            pdf.add_page(orientation='P')
-            pdf.image(image, x=0, y=0, w=210, h=297)
-
-        os.remove(image)
-
-    pdf.output('comic.pdf', 'F')
-    webbrowser.open(r'comic.pdf')
-
-
-sel = input('What would you like to do?\n[0] add to list\n[1] read from list\n\nSelection: ')
-if sel == '0':
-    add_to_readlist()
-if sel == '1':
-    print_readlist()
