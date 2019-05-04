@@ -1,2 +1,2 @@
 # comic-reader
-A python program to read comics from the command line
+A python script to read and track comics so I don't have to visit sketchy websites

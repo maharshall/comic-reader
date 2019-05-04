@@ -123,11 +123,16 @@ def comic_detail_view(selection):
     print(table)
     print('[0] Read  [1] Edit Issues Read  [2] Remove from List  [b] Go Back  [q] Quit')
     sel = input('\nSelection: ')
+    _ = os.system('cls')
 
     if sel == '0':
         read_comic(selection)
     if sel == '1':
         issues = input('How many issues have you read? ')
+        if int(issues) > data[selection]['total']:
+            print('That doesn\'t seem right...')
+            _ = os.system('cls')
+            comic_detail_view(selection)
         _ = os.system('cls')
         data.update({selection: {'title':data[selection]['title'],
             'url':data[selection]['url'],
@@ -231,7 +236,7 @@ def update_readlist():
         
 
 def main():
-    update_readlist()
+    _ = os.system('cls')
     sel = input('What would you like to do?\n[0] Add to List  [1] View List  [q] Quit\n\nSelection: ')
     _ = os.system('cls')
     if sel == '0':
@@ -242,4 +247,6 @@ def main():
         exit()
 
 if __name__== "__main__":
+    print('Updating comcis...')
+    update_readlist()
     main()
