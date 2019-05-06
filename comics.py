@@ -81,10 +81,12 @@ def print_readlist():
     data = json.load(open('readlist.json', 'r'))
     table = PrettyTable(['#', 'Name', 'Issues Read', 'Status'])
     table.align = 'l'
+    i = 0
     for key in data:
         table.add_row([i, data[key]['title'], str(data[key]['read'])+'/'+str(data[key]['total']), data[key]['status']])
+        i += 1
     print(table)
-    print('\n[a] Add to List  [b] Go Back  [q] Quit')
+    print('\n[a] Add to List  [u] Force Update  [b] Go Back  [q] Quit')
     selection = input('\nSelection: ')
     clear()
 
@@ -92,6 +94,9 @@ def print_readlist():
         query = input("Enter Search: ")
         clear()
         add_to_readlist(query, 1)
+    if selection == 'u':
+        update_readlist()
+        print_readlist()
     if selection == 'b':
         main()
     if selection == 'q':
@@ -216,6 +221,7 @@ def read_comic(selection):
         exit()
 
 def update_readlist():
+    print('Updating comcis...')
     data = get_readlist()
     if data is None:
         return None
@@ -232,7 +238,7 @@ def update_readlist():
             'read':comic['read'],
             'total':total,
             'status':status}})
-    write_readlist(data) 
+    write_readlist(data)
         
 
 def main():
@@ -240,6 +246,5 @@ def main():
     print_readlist()
 
 if __name__ == "__main__":
-    print('Updating comcis...')
     update_readlist()
     main()
