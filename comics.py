@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from prettytable import PrettyTable
 
 def clear():
-    if os.name == 'nt': 
+    if os.name == 'nt':
         _ = os.system('cls')
     else:
         _ = os.system('clear')
@@ -38,34 +38,33 @@ def add_to_readlist(query, p=1):
     if sel == 'n':
         add_to_readlist(query, p+1)
         clear()
-    if sel == 'b':
+    elif sel == 'b':
         main()
-    if sel == 'q':
+    elif sel == 'q':
         exit()
+    elif sel.isdigit():
+        confirm = input("add {} to readlist? (y/n): ".format(results[int(sel)].h3.text))
+        if confirm == 'y':
+            data = get_readlist()
 
-    confirm = input("add {} to readlist? (y/n): ".format(results[int(sel)].h3.text))
-    if confirm == 'y':
-        data = get_readlist()
+            row = table[int(sel)]
+            row.border = False
+            row.header = False
 
-        row = table[int(sel)]
-        row.border = False
-        row.header = False
+            if row.get_string(fields=['Name']).strip() in data.keys():
+                print('Comic is already in readlist')
+                main()
 
-        if row.get_string(fields=['Name']).strip() in data.keys():
-            print('Comic is already in readlist')
-            main()
+            url = results[int(sel)].a['href']
+            total = get_total_issues(url)
+            status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
 
-        url = results[int(sel)].a['href']
-        total = get_total_issues(url)
-        status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
-
-        data.update({row.get_string(fields=['Name']).strip(): {'title':results[int(sel)].h3.text,
-            'url':results[int(sel)].a['href'],
-            'read':0,
-            'total':total,
-            'status':status}})
-        
-        write_readlist(data)    
+            data.update({row.get_string(fields=['Name']).strip(): {'title':results[int(sel)].h3.text,
+                'url':results[int(sel)].a['href'],
+                'read':0,
+                'total':total,
+                'status':status}})
+            write_readlist(data)  
     main()
 
 def get_readlist():
@@ -94,18 +93,20 @@ def print_readlist():
         query = input("Enter Search: ")
         clear()
         add_to_readlist(query, 1)
-    if selection == 'u':
+    elif selection == 'u':
         update_readlist()
         print_readlist()
-    if selection == 'b':
+    elif selection == 'b':
         main()
-    if selection == 'q':
+    elif selection == 'q':
         exit()
-
-    row = table[int(selection)]
-    row.border = False
-    row.header = False
-    comic_detail_view(row.get_string(fields=['Name']).strip())
+    elif selection.isdigit():
+        row = table[int(selection)]
+        row.border = False
+        row.header = False
+        comic_detail_view(row.get_string(fields=['Name']).strip())
+    else:
+        main()
 
 def get_total_issues(url):
     page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
@@ -117,11 +118,6 @@ def get_total_issues(url):
 def comic_detail_view(selection):
     data = get_readlist()
 
-    if selection == 'b':
-        main()
-    if selection == 'q':
-        exit()
-
     table = PrettyTable(['Name', 'Issues Read', 'Status'])
     table.align = 'l'
     table.add_row([data[selection]['title'], str(data[selection]['read'])+'/'+str(data[selection]['total']), data[selection]['status']])
@@ -131,7 +127,7 @@ def comic_detail_view(selection):
 
     if sel == 'r':
         read_comic(selection)
-    if sel == 'e':
+    elif sel == 'e':
         issues = input('How many issues have you read? ')
         if int(issues) > data[selection]['total']:
             print('That doesn\'t seem right...')
@@ -145,7 +141,7 @@ def comic_detail_view(selection):
             'status':data[selection]['status']}})
         write_readlist(data)
         comic_detail_view(selection)
-    if sel == 'd':
+    elif sel == 'd':
         confirm = input('Are you sure you want to remove {} from readlist? (y/n)'.format(data[selection]['title']))
         clear()
         if confirm == 'y':
@@ -154,10 +150,12 @@ def comic_detail_view(selection):
             print_readlist()
         else:
             comic_detail_view(selection)
-    if sel == 'b':
+    elif sel == 'b':
         main()
-    if sel == 'q':
+    elif sel == 'q':
         exit()
+    else:
+        main()
 
 def read_comic(selection):
     data = get_readlist()
@@ -181,6 +179,9 @@ def read_comic(selection):
 
     pages = soup.find_all('img', class_='chapter_img')
 
+    if not os.path.exists('images'):
+        os.mkdir('images')
+    
     for i in range(len(pages)):
         urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
 
@@ -215,10 +216,12 @@ def read_comic(selection):
 
     if sel == 'n':
         read_comic(selection)
-    if sel == 'b':
+    elif sel == 'b':
         main()
-    if sel == 'q':
+    elif sel == 'q':
         exit()
+    else:
+        main()
 
 def update_readlist():
     print('Updating comcis...')
