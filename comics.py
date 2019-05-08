@@ -77,15 +77,15 @@ def write_readlist(data):
     json.dump(data, open('readlist.json', 'w'))
 
 def print_readlist():
-    data = json.load(open('readlist.json', 'r'))
+    data = get_readlist()
     table = PrettyTable(['#', 'Name', 'Issues Read', 'Status'])
     table.align = 'l'
     i = 0
-    for key in data:
+    for key in sorted(data.keys()):
         table.add_row([i, data[key]['title'], str(data[key]['read'])+'/'+str(data[key]['total']), data[key]['status']])
         i += 1
     print(table)
-    print('\n[a] Add to List  [u] Force Update  [b] Go Back  [q] Quit')
+    print('\n[a] Add to List  [u] Update  [b] Go Back  [q] Quit')
     selection = input('\nSelection: ')
     clear()
 
@@ -142,7 +142,7 @@ def comic_detail_view(selection):
         write_readlist(data)
         comic_detail_view(selection)
     elif sel == 'd':
-        confirm = input('Are you sure you want to remove {} from readlist? (y/n)'.format(data[selection]['title']))
+        confirm = input('Are you sure you want to remove {} from readlist? (y/n): '.format(data[selection]['title']))
         clear()
         if confirm == 'y':
             del data[selection]
@@ -236,12 +236,16 @@ def update_readlist():
         total = get_total_issues(comic['url'])
         status = soup.find_all('dd')[1].a.text
 
+        if total > comic['total']:
+            print('New issue of '+key)
+
         data.update({key: {'title':comic['title'],
             'url':comic['url'],
             'read':comic['read'],
             'total':total,
             'status':status}})
     write_readlist(data)
+    clear()
         
 
 def main():
@@ -249,5 +253,5 @@ def main():
     print_readlist()
 
 if __name__ == "__main__":
-    update_readlist()
+    # update_readlist()
     main()
