@@ -122,7 +122,7 @@ def comic_detail_view(selection):
     table.align = 'l'
     table.add_row([data[selection]['title'], str(data[selection]['read'])+'/'+str(data[selection]['total']), data[selection]['status']])
     print(table)
-    print('[r] Read  [e] Edit Issues Read  [d] Delete from List  [b] Go Back  [q] Quit')
+    print('[r] Read  [e] Edit Issues Read  [u] Update  [d] Delete from List  [b] Go Back  [q] Quit')
     sel = input('\nSelection: ')
 
     if sel == 'r':
@@ -140,6 +140,9 @@ def comic_detail_view(selection):
             'total':data[selection]['total'],
             'status':data[selection]['status']}})
         write_readlist(data)
+        comic_detail_view(selection)
+    elif sel == 'u':
+        update_comic(selection)
         comic_detail_view(selection)
     elif sel == 'd':
         confirm = input('Are you sure you want to remove {} from readlist? (y/n): '.format(data[selection]['title']))
@@ -210,18 +213,19 @@ def read_comic(selection):
     pdf.output('comic.pdf', 'F')
     webbrowser.open(r'comic.pdf')
     clear()
-    print('[n] Read Next Issue [b] Go Back [q] Quit')
-    sel = input('\nSelection: ')
-    clear()
+    comic_detail_view(selection)
+    # print('[n] Read Next Issue [b] Go Back [q] Quit')
+    # sel = input('\nSelection: ')
+    # clear()
 
-    if sel == 'n':
-        read_comic(selection)
-    elif sel == 'b':
-        main()
-    elif sel == 'q':
-        exit()
-    else:
-        main()
+    # if sel == 'n':
+    #     read_comic(selection)
+    # elif sel == 'b':
+    #     main()
+    # elif sel == 'q':
+    #     exit()
+    # else:
+    #     main()
 
 def update_readlist():
     print('Updating comcis...')
@@ -244,6 +248,27 @@ def update_readlist():
             'read':comic['read'],
             'total':total,
             'status':status}})
+    write_readlist(data)
+    clear()
+
+def update_comic(key):
+    print('Updating comic...')
+    data = get_readlist()
+    comic = data[key]
+    page = requests.get(comic['url'], headers={'User-Agent':'Mozilla/5.0'})
+    soup = BeautifulSoup(page.content, 'html.parser')
+
+    total = get_total_issues(comic['url'])
+    status = soup.find_all('dd')[1].a.text
+
+    if total > comic['total']:
+        print('New issue of '+key)
+
+    data.update({key: {'title':comic['title'],
+        'url':comic['url'],
+        'read':comic['read'],
+        'total':total,
+        'status':status}})
     write_readlist(data)
     clear()
         
