@@ -1,35 +1,46 @@
 # Alexander Marshall
 
-import cv2, os, json, requests, webbrowser, urllib.request
-import pprint
+import os
+import cv2 
+import json
+import requests 
+import webbrowser 
+import urllib.request
 from fpdf import FPDF
 from bs4 import BeautifulSoup
+from fuzzywuzzy import process
 from prettytable import PrettyTable
 
+# clears the terminal screen
 def clear():
     if os.name == 'nt':
         _ = os.system('cls')
     else:
         _ = os.system('clear')
 
+# generates a soup object from the given url
 def get_soup(url):
     page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
     return BeautifulSoup(page.content, 'html.parser')
 
+# updates an item in the readlist
 def update_item(key, title, url, read, total, status):
     data = get_readlist()
     data.update({key: {'title':title, 'url':url, 'read':read, 'total':total, 'status':status}})
     write_readlist(data)
 
+# generates a dictionary from the json file
 def get_readlist():
     if os.path.getsize('readlist.json') > 0:
         data = json.load(open('readlist.json', 'r'))
         return data
     return {}
 
+# writes dictionary to json file
 def write_readlist(data):
     json.dump(data, open('readlist.json', 'w'))
 
+# prompts the user to search for a comic and make a selection
 def add_to_readlist(query, p=1):
     query = query.replace(' ', '+')
     soup = get_soup('https://www.comicextra.com/comic-search?key='+query+'&page='+str(p))
@@ -77,9 +88,10 @@ def add_to_readlist(query, p=1):
             total = get_total_issues(url)
             status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
 
-            update_item(title, results[int(set)].h3.text, results[int(sel)].a['href'], 0, total, status)
+            update_item(title, results[int(sel)].h3.text, results[int(sel)].a['href'], 0, total, status)
     main()
 
+# prints the readlist to the terminal in a nice looking table
 def print_readlist():
     data = get_readlist()
     table = PrettyTable(['#', 'Name', 'Issues Read', 'Status'])
@@ -93,7 +105,10 @@ def print_readlist():
     selection = input('\nSelection: ')
     clear()
 
-    if selection == 'a':
+    if len(selection) > 3:
+        # attempt fuzzy match
+        comic_detail_view(process.extractOne(selection, data.keys())[0])
+    elif selection == 'a':
         query = input("Enter Search: ")
         clear()
         add_to_readlist(query, 1)
@@ -112,12 +127,14 @@ def print_readlist():
     else:
         main()
 
+# get the total available issues for the comic at the given url
 def get_total_issues(url):
     soup = get_soup(url)
 
     issues = soup.find_all('tr')
     return len(issues)
 
+# prints the details of a single comic
 def comic_detail_view(selection):
     data = get_readlist()
     comic = data[selection]
@@ -159,9 +176,9 @@ def comic_detail_view(selection):
     else:
         main()
 
+# gets the next issue of the selected comic, downloads images, combines them to pdf, and removes images
 def read_comic(selection):
     data = get_readlist()
-
     comic = data[selection]
 
     if comic['read'] == comic['total']:
@@ -180,17 +197,16 @@ def read_comic(selection):
     if not os.path.exists('images'):
         os.mkdir('images')
     
-    for i in range(len(pages)):
-        urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
-
-    update_item(selection, comic['title'], comic['url'], comic['read']+1, comic['total'], comic['status'])
-
     pdf = FPDF()
     pdf.set_auto_page_break(0)
 
-    for i in range(len(os.listdir('images'))):
+    for i in range(len(pages)):
+        urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
+
+    # for i in range(len(os.listdir('images'))):
         image = 'images/'+str(i)+'.jpg'
         img = cv2.imread(image)   
+        
         if img.shape[0] < img.shape[1]:
             pdf.add_page(orientation='L')
             pdf.image(image, x=0, y=0, h=210, w=297)
@@ -201,10 +217,12 @@ def read_comic(selection):
         os.remove(image)
 
     pdf.output('comic.pdf', 'F')
+    update_item(selection, comic['title'], comic['url'], comic['read']+1, comic['total'], comic['status'])
     webbrowser.open(r'comic.pdf')
     clear()
     comic_detail_view(selection)
 
+# checks all the comics in the readlist for new issues and changes in status
 def update_readlist():
     print('Updating comcis...')
     data = get_readlist()
@@ -223,6 +241,7 @@ def update_readlist():
         update_item(key, comic['title'], comic['url'], comic['read'], total, status)
     clear()
 
+# checks a single comic for new issues and changes in status
 def update_comic(key):
     print('Updating comic...')
     data = get_readlist()

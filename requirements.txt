@@ -1,0 +1,6 @@
+opencv_python==4.1.0.25
+requests==2.21.0
+prettytable==0.7.2
+fpdf==1.7.2
+fuzzywuzzy==0.17.0
+beautifulsoup4==4.7.1
