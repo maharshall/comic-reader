@@ -1,6 +1,7 @@
 # Alexander Marshall
 
 import cv2, os, json, requests, webbrowser, urllib.request
+import pprint
 from fpdf import FPDF
 from bs4 import BeautifulSoup
 from prettytable import PrettyTable
@@ -11,11 +12,27 @@ def clear():
     else:
         _ = os.system('clear')
 
+def get_soup(url):
+    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
+    return BeautifulSoup(page.content, 'html.parser')
+
+def update_item(key, title, url, read, total, status):
+    data = get_readlist()
+    data.update({key: {'title':title, 'url':url, 'read':read, 'total':total, 'status':status}})
+    write_readlist(data)
+
+def get_readlist():
+    if os.path.getsize('readlist.json') > 0:
+        data = json.load(open('readlist.json', 'r'))
+        return data
+    return {}
+
+def write_readlist(data):
+    json.dump(data, open('readlist.json', 'w'))
+
 def add_to_readlist(query, p=1):
     query = query.replace(' ', '+')
-    url = 'https://www.comicextra.com/comic-search?key='+query+'&page='+str(p)
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
+    soup = get_soup('https://www.comicextra.com/comic-search?key='+query+'&page='+str(p))
 
     results = soup.find_all('div', class_='cartoon-box')
     table = PrettyTable(['#', 'Name', 'Issues', 'Released', 'Status'])
@@ -50,8 +67,9 @@ def add_to_readlist(query, p=1):
             row = table[int(sel)]
             row.border = False
             row.header = False
+            title = row.get_string(fields=['Name']).strip()
 
-            if row.get_string(fields=['Name']).strip() in data.keys():
+            if title in data.keys():
                 print('Comic is already in readlist')
                 main()
 
@@ -59,22 +77,8 @@ def add_to_readlist(query, p=1):
             total = get_total_issues(url)
             status = results[int(sel)].find_all('div', class_='detail')[1].text[8:]
 
-            data.update({row.get_string(fields=['Name']).strip(): {'title':results[int(sel)].h3.text,
-                'url':results[int(sel)].a['href'],
-                'read':0,
-                'total':total,
-                'status':status}})
-            write_readlist(data)  
+            update_item(title, results[int(set)].h3.text, results[int(sel)].a['href'], 0, total, status)
     main()
-
-def get_readlist():
-    if os.path.getsize('readlist.json') > 0:
-        data = json.load(open('readlist.json', 'r'))
-        return data
-    return {}
-
-def write_readlist(data):
-    json.dump(data, open('readlist.json', 'w'))
 
 def print_readlist():
     data = get_readlist()
@@ -109,18 +113,18 @@ def print_readlist():
         main()
 
 def get_total_issues(url):
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
+    soup = get_soup(url)
 
     issues = soup.find_all('tr')
     return len(issues)
 
 def comic_detail_view(selection):
     data = get_readlist()
+    comic = data[selection]
 
     table = PrettyTable(['Name', 'Issues Read', 'Status'])
     table.align = 'l'
-    table.add_row([data[selection]['title'], str(data[selection]['read'])+'/'+str(data[selection]['total']), data[selection]['status']])
+    table.add_row([comic['title'], str(comic['read'])+'/'+str(comic['total']), comic['status']])
     print(table)
     print('[r] Read  [e] Edit Issues Read  [u] Update  [d] Delete from List  [b] Go Back  [q] Quit')
     sel = input('\nSelection: ')
@@ -129,23 +133,18 @@ def comic_detail_view(selection):
         read_comic(selection)
     elif sel == 'e':
         issues = input('How many issues have you read? ')
-        if int(issues) > data[selection]['total']:
+        if int(issues) > comic['total']:
             print('That doesn\'t seem right...')
             clear()
             comic_detail_view(selection)
         clear()
-        data.update({selection: {'title':data[selection]['title'],
-            'url':data[selection]['url'],
-            'read':int(issues),
-            'total':data[selection]['total'],
-            'status':data[selection]['status']}})
-        write_readlist(data)
+        update_item(selection, comic['title'], comic['url'], int(issues), comic['total'], comic['status'])
         comic_detail_view(selection)
     elif sel == 'u':
         update_comic(selection)
         comic_detail_view(selection)
     elif sel == 'd':
-        confirm = input('Are you sure you want to remove {} from readlist? (y/n): '.format(data[selection]['title']))
+        confirm = input('Are you sure you want to remove {} from readlist? (y/n): '.format(comic['title']))
         clear()
         if confirm == 'y':
             del data[selection]
@@ -169,17 +168,13 @@ def read_comic(selection):
         print('There are no more issues to read for this comic!')
         main()
 
-    url = comic['url']
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
+    soup = get_soup(comic['url'])
 
     issues = soup.find_all("tr")[comic['total']-comic['read']-1]
     print('Loading '+issues.find("td").a.text+'...')
     url = issues.find("td").a['href']+'/full'
 
-    page = requests.get(url, headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
-
+    soup = get_soup(url)
     pages = soup.find_all('img', class_='chapter_img')
 
     if not os.path.exists('images'):
@@ -188,12 +183,7 @@ def read_comic(selection):
     for i in range(len(pages)):
         urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
 
-    data.update({selection: {'title':comic['title'],
-            'url':comic['url'],
-            'read':comic['read']+1,
-            'total':comic['total'],
-            'status':comic['status']}})
-    write_readlist(data) 
+    update_item(selection, comic['title'], comic['url'], comic['read']+1, comic['total'], comic['status'])
 
     pdf = FPDF()
     pdf.set_auto_page_break(0)
@@ -214,18 +204,6 @@ def read_comic(selection):
     webbrowser.open(r'comic.pdf')
     clear()
     comic_detail_view(selection)
-    # print('[n] Read Next Issue [b] Go Back [q] Quit')
-    # sel = input('\nSelection: ')
-    # clear()
-
-    # if sel == 'n':
-    #     read_comic(selection)
-    # elif sel == 'b':
-    #     main()
-    # elif sel == 'q':
-    #     exit()
-    # else:
-    #     main()
 
 def update_readlist():
     print('Updating comcis...')
@@ -234,8 +212,7 @@ def update_readlist():
         return None
     for key in data:
         comic = data[key]
-        page = requests.get(comic['url'], headers={'User-Agent':'Mozilla/5.0'})
-        soup = BeautifulSoup(page.content, 'html.parser')
+        soup = get_soup(comic['url'])
 
         total = get_total_issues(comic['url'])
         status = soup.find_all('dd')[1].a.text
@@ -243,20 +220,14 @@ def update_readlist():
         if total > comic['total']:
             print('New issue of '+key)
 
-        data.update({key: {'title':comic['title'],
-            'url':comic['url'],
-            'read':comic['read'],
-            'total':total,
-            'status':status}})
-    write_readlist(data)
+        update_item(key, comic['title'], comic['url'], comic['read'], total, status)
     clear()
 
 def update_comic(key):
     print('Updating comic...')
     data = get_readlist()
     comic = data[key]
-    page = requests.get(comic['url'], headers={'User-Agent':'Mozilla/5.0'})
-    soup = BeautifulSoup(page.content, 'html.parser')
+    soup = get_soup(comic['url'])
 
     total = get_total_issues(comic['url'])
     status = soup.find_all('dd')[1].a.text
@@ -264,19 +235,12 @@ def update_comic(key):
     if total > comic['total']:
         print('New issue of '+key)
 
-    data.update({key: {'title':comic['title'],
-        'url':comic['url'],
-        'read':comic['read'],
-        'total':total,
-        'status':status}})
-    write_readlist(data)
+    update_item(key, comic['title'], comic['url'], comic['read'], total, status)
     clear()
         
-
 def main():
     clear()
     print_readlist()
 
 if __name__ == "__main__":
-    # update_readlist()
     main()
