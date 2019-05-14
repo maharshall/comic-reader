@@ -143,7 +143,7 @@ def comic_detail_view(selection):
     table.align = 'l'
     table.add_row([comic['title'], str(comic['read'])+'/'+str(comic['total']), comic['status']])
     print(table)
-    print('[r] Read  [e] Edit Issues Read  [u] Update  [d] Delete from List  [b] Go Back  [q] Quit')
+    print('\n[r] Read  [e] Edit Issues Read  [u] Update  [d] Delete from List  [b] Go Back  [q] Quit')
     sel = input('\nSelection: ')
 
     if sel == 'r':
