@@ -49,12 +49,12 @@ def add_to_readlist(query, p=1):
     table = PrettyTable(['#', 'Name', 'Issues', 'Released', 'Status'])
     table.align = 'l'
 
-    for i in range(len(results)):
-        details = results[i].find_all('div', class_='detail')
+    for i, result in enumerate(results):
+        details = result.find_all('div', class_='detail')
         status = details[1].text[8:]
         released = details[2].text[10:]
-        total = get_total_issues(results[i].a['href'])
-        table.add_row([i, results[i].h3.text, total, released, status])
+        total = get_total_issues(result.a['href'])
+        table.add_row([i, result.h3.text, total, released, status])
 
     print('Page: '+str(p))
     print(table)
@@ -96,31 +96,29 @@ def print_readlist():
     data = get_readlist()
     table = PrettyTable(['#', 'Name', 'Issues Read', 'Status'])
     table.align = 'l'
-    i = 0
-    for key in sorted(data.keys()):
+    for i, key in enumerate(sorted(data.keys())):
         table.add_row([i, data[key]['title'], str(data[key]['read'])+'/'+str(data[key]['total']), data[key]['status']])
-        i += 1
     print(table)
     print('\n[a] Add to List  [u] Update  [b] Go Back  [q] Quit')
-    selection = input('\nSelection: ')
+    sel = input('\nSelection: ')
     clear()
 
-    if len(selection) > 3:
+    if len(sel) > 3:
         # attempt fuzzy match
-        comic_detail_view(process.extractOne(selection, data.keys())[0])
-    elif selection == 'a':
+        comic_detail_view(process.extractOne(sel, data.keys())[0])
+    elif sel == 'a':
         query = input("Enter Search: ")
         clear()
         add_to_readlist(query, 1)
-    elif selection == 'u':
+    elif sel == 'u':
         update_readlist()
         print_readlist()
-    elif selection == 'b':
+    elif sel == 'b':
         main()
-    elif selection == 'q':
+    elif sel == 'q':
         exit()
-    elif selection.isdigit():
-        row = table[int(selection)]
+    elif sel.isdigit():
+        row = table[int(sel)]
         row.border = False
         row.header = False
         comic_detail_view(row.get_string(fields=['Name']).strip())
@@ -200,8 +198,8 @@ def read_comic(selection):
     pdf = FPDF()
     pdf.set_auto_page_break(0)
 
-    for i in range(len(pages)):
-        urllib.request.urlretrieve(pages[i]['src'], "images/"+str(i)+".jpg")
+    for i, page in enumerate(pages):
+        urllib.request.urlretrieve(page['src'], "images/"+str(i)+".jpg")
 
     # for i in range(len(os.listdir('images'))):
         image = 'images/'+str(i)+'.jpg'
@@ -226,6 +224,8 @@ def read_comic(selection):
 def update_readlist():
     print('Updating comcis...')
     data = get_readlist()
+    new_issues = False
+
     if data is None:
         return None
     for key in data:
@@ -236,9 +236,14 @@ def update_readlist():
         status = soup.find_all('dd')[1].a.text
 
         if total > comic['total']:
+            new_issues = True
             print('New issue of '+key)
 
         update_item(key, comic['title'], comic['url'], comic['read'], total, status)
+    if new_issues:
+        _ = input('\nPush enter to continue')
+    else:
+        _ = input('\nNo new issues found, push enter to continue')
     clear()
 
 # checks a single comic for new issues and changes in status
@@ -247,14 +252,20 @@ def update_comic(key):
     data = get_readlist()
     comic = data[key]
     soup = get_soup(comic['url'])
+    new_issue = False
 
     total = get_total_issues(comic['url'])
     status = soup.find_all('dd')[1].a.text
 
     if total > comic['total']:
+        new_issue = True
         print('New issue of '+key)
 
     update_item(key, comic['title'], comic['url'], comic['read'], total, status)
+    if new_issue:
+        _ = input('\nPush enter to continue')
+    else:
+        _ = input('\nNo new issue found, push enter to continue')
     clear()
         
 def main():
